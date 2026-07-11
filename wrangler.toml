@@ -1,0 +1,45 @@
+# Accentura — Cloudflare Workers configuration
+#
+# This file is committed to your repo. When you connect the repo to
+# Cloudflare (Workers & Pages > Create > Connect to Git), Cloudflare reads
+# this file to know how to build/run the Worker.
+#
+# Secrets (TELEGRAM_BOT_TOKEN, GEMINI_KEYS, ADMIN_IDS) should be set in the
+# Cloudflare dashboard under Settings > Variables > Environment Variables
+# (mark them as "Secret"). The [vars] block below is only for NON-secret
+# defaults.
+
+name = "accentura"
+main = "src/index.js"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# D1 database binding
+# ---------------------------------------------------------------------------
+# After you create the D1 database in the dashboard, paste its ID here (or
+# bind it via the dashboard; the dashboard binding takes precedence).
+[[d1_databases]]
+binding = "DB"                  # accessed in code as env.DB
+database_name = "accentura"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# ---------------------------------------------------------------------------
+# Cron trigger — daily push at 08:00 UTC by default
+# ---------------------------------------------------------------------------
+# You can also configure this via the dashboard (Triggers > Cron Triggers).
+# The dashboard setting takes precedence over this file if both are set.
+[triggers]
+crons = ["0 8 * * *"]
+
+# ---------------------------------------------------------------------------
+# Non-secret vars (safe to commit)
+# ---------------------------------------------------------------------------
+# Sensitive ones (TELEGRAM_BOT_TOKEN, GEMINI_KEYS, ADMIN_IDS) MUST be added
+# via the dashboard as Secrets, not here.
+[vars]
+REQUIRED_CHANNEL = "@your_channel_username"
+DEFAULT_USER_CAP = "500"
+# TELEGRAM_BOT_TOKEN = "set-as-secret-in-dashboard"
+# GEMINI_KEYS        = "set-as-secret-in-dashboard"  # JSON array string, e.g. '["key1","key2"]'
+# ADMIN_IDS          = "set-as-secret-in-dashboard"  # comma-separated telegram user IDs
