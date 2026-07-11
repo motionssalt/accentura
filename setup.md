@@ -45,9 +45,11 @@ stuck at the join gate.
 4. Open `schema.sql` from this repo, **copy its entire contents**, paste into
    the console, and click **Execute**. You should see the `users`, `content_pool`,
    `config`, and `api_key_status` tables created.
-5. (For later) When you're ready to add real facts/quotes, do the same with
-   `content-seed.example.sql` (edit it to your real content first — the shipped
-   file is placeholder only).
+5. To load the ready-made content pool (240 facts/quotes, 60 per tier), do the
+   same with `content-seed.sql` — paste its contents into the console and
+   execute. You can add more later with the same `INSERT INTO content_pool`
+   shape (`content-seed.example.sql` is kept only as a format reference and
+   doesn't need to be run).
 
 Copy the D1 **database ID** from the top of the database page — you'll paste it
 into `wrangler.toml` (see step 4).
@@ -160,22 +162,25 @@ day's audio to every locked user.
 
 ---
 
-## 9. Seed content (when you're ready)
+## 9. Seed content
 
 The bot ships with `content_pool` **empty by design**. Until you seed it,
 `/today` will politely tell users no content is available.
 
-1. Prepare your real content in a SQL file with the same shape as
-   `content-seed.example.sql` (facts and quotes, tagged by tier 1–4).
-2. In the dashboard: **D1 → accentura → Console**.
-3. Paste your seed SQL and click **Execute**.
-4. Verify with:
+1. In the dashboard: **D1 → accentura → Console**.
+2. Open `content-seed.sql` from this repo, copy its entire contents, paste
+   into the console, and click **Execute**. This loads the ready-made pool:
+   240 items total, 60 per tier (36 facts + 24 quotes each).
+3. Verify with:
    ```sql
    SELECT tier, COUNT(*) FROM content_pool GROUP BY tier;
    ```
+   You should see 60 rows per tier (1–4).
 
-You want at least ~30 items per tier so users don't hit the "repeat fallback"
-path during a 30-day run.
+Want more variety later? Add rows anytime with the same
+`INSERT INTO content_pool (tier, type, text) VALUES (...)` shape.
+`content-seed.example.sql` is just a format reference for that — it isn't
+used by the running bot and doesn't need to be executed.
 
 ---
 
