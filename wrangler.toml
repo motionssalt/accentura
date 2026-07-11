@@ -22,7 +22,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"                  # accessed in code as env.DB
 database_name = "accentura"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "f6a5b349-cf5b-454e-ad86-ccb138d3f67e"
 
 # ---------------------------------------------------------------------------
 # Cron trigger — daily push at 08:00 UTC by default
