@@ -32,7 +32,7 @@ src/
   db.js             D1 query helpers
   channelGate.js    membership gate middleware
 schema.sql                D1 schema (content_pool ships empty)
-content-seed.example.sql  placeholder content, replace before use
+content-seed.sql          ready-to-run seed: 240 facts/quotes (60 per tier)
 wrangler.toml             Worker config (D1 binding + cron trigger)
 setup.md                  dashboard-only deployment guide
 ```
@@ -50,9 +50,12 @@ setup.md                  dashboard-only deployment guide
 - **Restart:** `/restart` resets the existing user row in place (accent,
   level, day, `used_content_ids` all cleared). The `telegram_id` and
   `username` are preserved.
-- **Content pool:** empty on purpose. Populate via
-  `content-seed.example.sql` (or your own seed) once you have real facts
-  and quotes.
+- **Content pool:** ships empty in `schema.sql` by design. Run
+  `content-seed.sql` against your D1 database to load the ready-made pool
+  of 240 items (60 per tier, 36 facts + 24 quotes each). Add more anytime
+  with the same `INSERT INTO content_pool (tier, type, text) VALUES (...)`
+  shape — `content-seed.example.sql` is kept only as a format reference and
+  isn't needed once `content-seed.sql` has been run.
 
 ## License
 
