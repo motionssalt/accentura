@@ -1,0 +1,12 @@
+{
+  "name": "accentura",
+  "version": "1.0.0",
+  "description": "Accentura — Telegram accent-learning bot on Cloudflare Workers + D1",
+  "private": true,
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "// note": "This project is designed to deploy from the Cloudflare dashboard (GitHub connect). No local build step is required.",
+    "start": "echo 'Deploy via Cloudflare Workers dashboard connected to GitHub. See setup.md.'"
+  }
+}
