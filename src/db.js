@@ -26,15 +26,16 @@ export async function lockInUser(db, telegramId, accentKey, accentPrompt, level)
   await db
     .prepare(
       `UPDATE users
-         SET accent_key       = ?,
-             accent_prompt    = ?,
-             level            = ?,
-             current_day      = 1,
-             locked           = 1,
-             used_content_ids = '[]',
-             today_content_id = NULL,
-             started_at       = ?,
-             completed_at     = NULL
+         SET accent_key           = ?,
+             accent_prompt        = ?,
+             level                = ?,
+             current_day          = 1,
+             locked               = 1,
+             used_content_ids     = '[]',
+             today_content_id     = NULL,
+             today_audio_file_id  = NULL,
+             started_at           = ?,
+             completed_at         = NULL
        WHERE telegram_id = ?`
     )
     .bind(accentKey, accentPrompt, level, nowIso, telegramId)
@@ -52,11 +53,29 @@ export async function setTodayContent(db, telegramId, contentId, usedIdsJson) {
     .run();
 }
 
-export async function advanceDay(db, telegramId, nextDay) {
+// Persist the Telegram file_id of today's synthesized audio so subsequent
+// /today calls (or cron reruns) can resend the same file without paying
+// another Gemini TTS call. Cleared by advanceDay() when the day rolls over.
+export async function setTodayAudioFileId(db, telegramId, fileId) {
   await db
     .prepare(
       `UPDATE users
-         SET current_day = ?, today_content_id = NULL
+         SET today_audio_file_id = ?
+       WHERE telegram_id = ?`
+    )
+    .bind(fileId || null, telegramId)
+    .run();
+}
+
+export async function advanceDay(db, telegramId, nextDay) {
+  // Advancing the day invalidates any cached content + audio for the
+  // previous day — clear both so the next delivery generates fresh content.
+  await db
+    .prepare(
+      `UPDATE users
+         SET current_day         = ?,
+             today_content_id    = NULL,
+             today_audio_file_id = NULL
        WHERE telegram_id = ?`
     )
     .bind(nextDay, telegramId)
