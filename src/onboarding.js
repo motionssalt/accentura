@@ -80,10 +80,12 @@ export function tierForDay(level, day) {
 export async function handleStart(env, chatId, tgUser) {
   const existing = await getUser(env.DB, tgUser.id);
 
-  // Case 1: locked returning user — show progress, no re-onboarding.
+  // Case 1: locked returning user — show progress + quick-action buttons.
   if (existing && existing.locked === 1 && existing.current_day <= 30) {
     const accentLabel = ACCENTS[existing.accent_key]?.label || existing.accent_key;
     const levelLabel = LEVELS[existing.level]?.label || existing.level;
+    // Inline buttons give already-onboarded users a fast path to today's
+    // audio and the settings panel without typing another command.
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       chatId,
@@ -92,17 +94,25 @@ export async function handleStart(env, chatId, tgUser) {
         `Level:  <b>${levelLabel}</b>\n` +
         `Progress: <b>Day ${existing.current_day} of 30</b>\n\n` +
         `Send /today to get today's practice, or wait for your daily push.`,
+      inlineKeyboard([
+        [{ text: `🎧 Get today's audio`, callback_data: 'settings:today'   }],
+        [{ text: '⚙️ Settings',           callback_data: 'settings:refresh' }],
+      ]),
     );
     return;
   }
 
-  // Case 2: previously completed user — offer /restart.
+  // Case 2: previously completed user — offer /restart + inline actions.
   if (existing && existing.completed_at) {
     await sendMessage(
       env.TELEGRAM_BOT_TOKEN,
       chatId,
       `🎉 You've already completed a 30-day run.\n\n` +
         `Send /restart to begin a fresh 30-day run with a new accent or level.`,
+      inlineKeyboard([
+        [{ text: '🔁 Restart with new accent', callback_data: 'settings:restart' }],
+        [{ text: '📊 View stats',              callback_data: 'settings:stats'   }],
+      ]),
     );
     return;
   }
@@ -145,18 +155,20 @@ export async function handleRestart(env, chatId, tgUser) {
   }
 
   // Fully clear their state so onboarding treats them as fresh.
+  // Also clear any cached audio file_id — it belongs to the previous run.
   await env.DB
     .prepare(
       `UPDATE users
-         SET accent_key = NULL,
-             accent_prompt = NULL,
-             level = NULL,
-             current_day = 1,
-             locked = 0,
-             used_content_ids = '[]',
-             today_content_id = NULL,
-             started_at = NULL,
-             completed_at = NULL
+         SET accent_key           = NULL,
+             accent_prompt        = NULL,
+             level                = NULL,
+             current_day          = 1,
+             locked               = 0,
+             used_content_ids     = '[]',
+             today_content_id     = NULL,
+             today_audio_file_id  = NULL,
+             started_at           = NULL,
+             completed_at         = NULL
        WHERE telegram_id = ?`,
     )
     .bind(tgUser.id)
@@ -285,6 +297,10 @@ export async function handleOnboardingCallback(env, cb) {
         `Level:  <b>${LEVELS[levelKey].label}</b>\n\n` +
         `Your accent and level can't be changed until you finish.\n\n` +
         `➡️ Send /today anytime to get today's practice, or wait for your daily push.`,
+      inlineKeyboard([
+        [{ text: `🎧 Get today's audio`, callback_data: 'settings:today'   }],
+        [{ text: '⚙️ Settings',           callback_data: 'settings:refresh' }],
+      ]),
     );
     return true;
   }
