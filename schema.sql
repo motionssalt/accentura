@@ -1,19 +1,25 @@
 -- Accentura D1 schema
 -- Run this once in the D1 console (Cloudflare dashboard > D1 > your DB > Console).
 -- Safe to re-run: all statements use IF NOT EXISTS.
+--
+-- If you have an EXISTING deployment (users table already created without
+-- today_audio_file_id), run schema-migration.sql instead of trying to alter
+-- this file's CREATE TABLE by hand — SQLite won't add columns via a re-run
+-- of CREATE TABLE IF NOT EXISTS.
 
 CREATE TABLE IF NOT EXISTS users (
-  telegram_id       INTEGER PRIMARY KEY,
-  username          TEXT,
-  accent_key        TEXT,
-  accent_prompt     TEXT,
-  level             TEXT,
-  current_day       INTEGER DEFAULT 1,
-  locked            INTEGER DEFAULT 1,
-  used_content_ids  TEXT    DEFAULT '[]',
-  today_content_id  INTEGER,
-  started_at        TEXT,
-  completed_at      TEXT
+  telegram_id          INTEGER PRIMARY KEY,
+  username             TEXT,
+  accent_key           TEXT,
+  accent_prompt        TEXT,
+  level                TEXT,
+  current_day          INTEGER DEFAULT 1,
+  locked               INTEGER DEFAULT 1,
+  used_content_ids     TEXT    DEFAULT '[]',
+  today_content_id     INTEGER,
+  today_audio_file_id  TEXT,               -- Telegram file_id of today's cached audio (see webhook.js)
+  started_at           TEXT,
+  completed_at         TEXT
 );
 
 CREATE TABLE IF NOT EXISTS content_pool (
