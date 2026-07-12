@@ -15,6 +15,7 @@ Total time: about 20–30 minutes on a first deploy.
 - A **GitHub account** with this repo pushed to it (or forked)
 - One or more **Gemini API keys** (from [aistudio.google.com](https://aistudio.google.com/apikey))
 - A **Telegram channel** where you'll gate access to the bot (public channel, e.g. `@my_channel`)
+- A **bot cover image** — JPEG, ≤200 kB, ≤320×320 px (for album art on daily audio clips)
 
 ---
 
@@ -42,10 +43,17 @@ stuck at the join gate.
 1. In the Cloudflare dashboard, go to **Workers & Pages** → **D1** → **Create database**.
 2. Name it `accentura` (or anything — you'll paste the ID into `wrangler.toml`).
 3. Open the database → **Console** tab.
-4. Open `schema.sql` from this repo, **copy its entire contents**, paste into
-   the console, and click **Execute**. You should see the `users`, `content_pool`,
-   `config`, and `api_key_status` tables created.
-5. To load the ready-made content pool (240 facts/quotes, 60 per tier), do the
+4. **For a brand-new deployment:** open `schema.sql` from this repo, **copy its
+   entire contents**, paste into the console, and click **Execute**. You should
+   see the `users`, `content_pool`, `config`, and `api_key_status` tables created.
+5. **For an EXISTING deployment upgrading to this version:** instead of
+   re-running `schema.sql`, paste the contents of `schema-migration.sql` into
+   the console and click **Execute**. This runs a single
+   `ALTER TABLE users ADD COLUMN today_audio_file_id TEXT;` — safe on any
+   existing DB, and required for the new per-day audio cache. It's safe to
+   re-run (SQLite will error with "duplicate column name" if already applied,
+   which is harmless).
+6. To load the ready-made content pool (240 facts/quotes, 60 per tier), do the
    same with `content-seed.sql` — paste its contents into the console and
    execute. You can add more later with the same `INSERT INTO content_pool`
    shape (`content-seed.example.sql` is kept only as a format reference and
@@ -77,6 +85,30 @@ to the actual ID from step 2. Commit the change to `main`.
 You should also verify:
 - `crons = ["0 8 * * *"]` — this is the daily push time in UTC. Change if you
   want a different hour. (You can also override this via the dashboard — see step 7.)
+- The `[assets]` block is present (`directory = "./assets"`, `binding = "ASSETS"`).
+  It's what makes the bot's cover art available inside the Worker.
+
+---
+
+## 4b. Drop the bot cover image into `/assets/`
+
+Every daily audio clip is sent with **album art** (Telegram displays it in the
+music player alongside the "Erastan" performer tag and the per-day title).
+The image lives at `assets/accentura-cover.jpg` in this repo.
+
+1. Prepare your image:
+   - Format: **JPEG** (`.jpg` preferred; `.png` also accepted as fallback)
+   - Size: **≤200 kB**
+   - Dimensions: **≤320×320 px** (square recommended)
+2. Upload it to the `assets/` folder in GitHub (Add file → Upload files) and
+   name it exactly:
+   - `accentura-cover.jpg` (preferred), OR
+   - `accentura-cover.png` (fallback if you only have PNG)
+3. Commit the change.
+
+If neither file is present, the bot still works — clips will just go out
+without a thumbnail (but with performer + title metadata intact). The Worker
+logs a warning and continues so a missing cover never blocks users.
 
 ---
 
@@ -104,7 +136,10 @@ Once the Worker exists:
 2. **D1 database bindings** — confirm there is a binding named `DB` pointing to
    the `accentura` database you created in step 2. If it isn't there, add it
    manually: **Binding name = `DB`**, database = `accentura`.
-3. **Environment variables** — add these. Mark the sensitive ones as **Secret**
+3. **Assets binding** — confirm there is a binding named `ASSETS` pointing at
+   the `assets/` directory (auto-created from `wrangler.toml`'s `[assets]`
+   block on first deploy). If it isn't there, add it manually.
+4. **Environment variables** — add these. Mark the sensitive ones as **Secret**
    (encrypted) using the "Encrypt" toggle:
 
    | Name                | Type   | Example value                                        |
@@ -123,7 +158,7 @@ Once the Worker exists:
    `GEMINI_KEY_1`, `GEMINI_KEY_2`, ... `GEMINI_KEY_100` (empty ones are skipped
    silently) — but the JSON array is cleaner.
 
-4. Click **Save and deploy**. Every save triggers a redeploy — wait ~30 s.
+5. Click **Save and deploy**. Every save triggers a redeploy — wait ~30 s.
 
 ---
 
@@ -199,8 +234,12 @@ From any Telegram chat with the bot, as a user whose Telegram ID is in
 
 Regular users see:
 - `/start` — begin (or resume) a 30-day run
-- `/today` — get today's practice on-demand
+- `/today` — get today's practice on-demand (first call of the day generates
+  fresh audio; repeat calls the same day reuse the cached Telegram file_id
+  and skip the Gemini TTS call entirely)
 - `/status` — see current day / accent / level
+- `/settings` — inline-button panel: locked users see read-only info +
+  streak view; completed users get "Restart with new accent" + "View stats"
 - `/restart` — begin a new 30-day run **after** finishing the current one
 - `/setaccent`, `/setlevel` — refused while locked into an active run
 
@@ -229,6 +268,24 @@ Regular users see:
 - `No Gemini API keys configured` → your `GEMINI_KEYS` var is unset or not
   valid JSON. It must be a JSON array string, e.g. `["AIza..."]`.
 
+### Audio comes through with no album art
+- Confirm `assets/accentura-cover.jpg` (or `.png`) exists in the repo and was
+  pushed to the deployed branch.
+- Check the Worker Logs for `Cached file_id resend failed` or similar — the
+  cover-loading path swallows errors and logs a warning, so a missing / oversized
+  file will show up there. Telegram enforces JPEG ≤200 kB and ≤320×320 px.
+
+### Audio doesn't show "Erastan" as performer
+- Both `performer` and `title` are set on **every** send in `webhook.js`.
+  If they don't render, you're probably looking at an older cached message —
+  the audio metadata is set per-message, so newly delivered clips will show
+  the updated values. Trigger a fresh delivery by advancing the day
+  (`/run-cron?token=...`) or from a user whose `today_audio_file_id` is null.
+
+### D1 error: `no such column: today_audio_file_id`
+- You have an existing deployment and haven't run `schema-migration.sql` yet.
+  Do step 2.5. This is the exact migration path for that error.
+
 ### D1 errors on deploy or in logs
 - `no such table: users` → you didn't run `schema.sql` in the D1 console. Do
   step 2.4.
@@ -250,10 +307,18 @@ Run this in the D1 console (replace the ID):
 UPDATE users
    SET accent_key = NULL, accent_prompt = NULL, level = NULL,
        current_day = 1, locked = 0, used_content_ids = '[]',
-       today_content_id = NULL, started_at = NULL, completed_at = NULL
+       today_content_id = NULL, today_audio_file_id = NULL,
+       started_at = NULL, completed_at = NULL
  WHERE telegram_id = 123456789;
 ```
 The next `/start` from that user will re-run onboarding.
+
+### Force-regenerate today's audio for a specific user
+If you want a user's next `/today` to hit Gemini fresh (e.g. after changing
+the accent prompt), just clear the cached file id:
+```sql
+UPDATE users SET today_audio_file_id = NULL WHERE telegram_id = 123456789;
+```
 
 ---
 
@@ -264,6 +329,6 @@ The next `/start` from that user will re-run onboarding.
 - The daily cron sends one audio + caption per day, in order.
 - On day 30, they get a completion message, `locked` flips to 0, and `/restart`
   becomes available.
-- `/restart` **resets their existing row** (accent, level, day, used_content_ids
-  all cleared) and re-runs onboarding. Their `telegram_id` and `username` are
-  preserved.
+- `/restart` **resets their existing row** (accent, level, day, used_content_ids,
+  today_audio_file_id all cleared) and re-runs onboarding. Their `telegram_id`
+  and `username` are preserved.
