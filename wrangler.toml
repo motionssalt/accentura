@@ -51,7 +51,7 @@ crons = ["0 8 * * *"]
 # Sensitive ones (TELEGRAM_BOT_TOKEN, GEMINI_KEYS, ADMIN_IDS) MUST be added
 # via the dashboard as Secrets, not here.
 [vars]
-REQUIRED_CHANNEL = "@your_channel_username"
+REQUIRED_CHANNEL = "@motionsalt"
 DEFAULT_USER_CAP = "500"
 # TELEGRAM_BOT_TOKEN = "set-as-secret-in-dashboard"
 # GEMINI_KEYS        = "set-as-secret-in-dashboard"  # JSON array string, e.g. '["key1","key2"]'
