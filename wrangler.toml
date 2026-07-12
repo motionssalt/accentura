@@ -25,6 +25,19 @@ database_name = "accentura"
 database_id = "f6a5b349-cf5b-454e-ad86-ccb138d3f67e"
 
 # ---------------------------------------------------------------------------
+# Static assets binding — bot cover art / thumbnails
+# ---------------------------------------------------------------------------
+# Files under ./assets/ are served through env.ASSETS.fetch("/assets/...").
+# The bot uses this to attach album-art to daily voice-note deliveries.
+#
+# Drop the cover image at ./assets/accentura-cover.jpg (JPEG preferred, up to
+# 200 kB and 320x320 px — Telegram's limits for audio thumbnails). A .png
+# fallback at ./assets/accentura-cover.png is also accepted.
+[assets]
+directory = "./assets"
+binding   = "ASSETS"
+
+# ---------------------------------------------------------------------------
 # Cron trigger — daily push at 08:00 UTC by default
 # ---------------------------------------------------------------------------
 # You can also configure this via the dashboard (Triggers > Cron Triggers).
